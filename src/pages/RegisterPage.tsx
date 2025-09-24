@@ -1,58 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks';
-import { registerUser } from '../feature/auth/authSlice';
+import {
+  requestRegisterOtp,
+  verifyRegisterOtp,
+  registerUser,
+} from '../feature/auth/authSlice';
 import { useNavigate, Link } from 'react-router-dom';
-import { HiUser } from 'react-icons/hi';
+import { HiUser, HiOutlineMail, HiOutlineUser } from 'react-icons/hi';
 import { CiLock } from 'react-icons/ci';
-import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
+import { MdOutlinePassword } from 'react-icons/md';
 
 const RegisterPage: React.FC = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [confirmError, setConfirmError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const { loading, error, successMessage, registerStep, secret, registrationToken } =
+    useAppSelector((state) => state.auth);
 
-  const { isAuthenticated, loading, error } = useAppSelector((state) => state.auth);
+  // Common states
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [username, setUsername] = useState('');
+  const [firstname, setFirstname] = useState('');
+  const [lastname, setLastname] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Password strength check
-  const validatePassword = (pwd: string) => {
-    const regex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/; // min 8, uppercase, lowercase, number, special char
-    return regex.test(pwd);
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
+  // Step 1: Request OTP
+  const handleRequestOtp = (e: React.FormEvent) => {
     e.preventDefault();
-    setPasswordError('');
-    setConfirmError('');
-
-    if (!validatePassword(password)) {
-      setPasswordError(
-        '❌ Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.'
-      );
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setConfirmError('❌ Passwords do not match.');
-      return;
-    }
-
-    await dispatch(registerUser({ username, password }));
+    dispatch(requestRegisterOtp({ email }));
   };
 
-  // Redirect to login if registration succeeds
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/login', { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
+  // Step 2: Verify OTP
+  const handleVerifyOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!secret) return;
+    dispatch(verifyRegisterOtp({ email, secret, otp }));
+  };
+
+  // Step 3: Register user
+  const handleRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password !== confirmPassword) return alert('Passwords do not match!');
+    if (!registrationToken) return;
+    dispatch(
+      registerUser({ username, firstname, lastname, password, registrationToken })
+    ).then((res: any) => {
+      if (res.meta.requestStatus === 'fulfilled') {
+        navigate('/login');
+      }
+    });
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 px-4">
@@ -61,95 +59,137 @@ const RegisterPage: React.FC = () => {
           Create Account
         </h2>
 
-        {error && (
-          <div className="mb-4 p-2 text-red-700 bg-red-100 rounded text-center">{error}</div>
+        {error && <p className="mb-4 text-red-700 bg-red-100 p-2 rounded text-center">{error}</p>}
+        {successMessage && (
+          <p className="mb-4 text-green-700 bg-green-100 p-2 rounded text-center">{successMessage}</p>
         )}
 
-        <form className="space-y-4" onSubmit={handleRegister}>
-          {/* Username */}
-          <div className="relative">
-            <HiUser className="absolute top-3 left-3 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-              focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:bg-gray-700 
-              dark:text-gray-100"
-              required
-            />
-          </div>
-
-          {/* Password */}
-          <div className="relative">
-            <CiLock className="absolute top-3 left-3 text-gray-400" />
-            <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full pl-10 pr-10 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-              focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:bg-gray-700 
-              dark:text-gray-100"
-              required
-            />
+        {/* STEP 1 → EMAIL */}
+        {registerStep === 'email' && (
+          <form onSubmit={handleRequestOtp} className="space-y-4">
+            <div className="relative">
+              <HiOutlineMail className="absolute top-3 left-3 text-gray-400" />
+              <input
+                type="email"
+                placeholder="Enter email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full pl-10 pr-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+              />
+            </div>
             <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 
-              dark:hover:text-gray-200"
+              type="submit"
+              disabled={loading}
+              className="w-full py-2 rounded-lg bg-blue-600 text-white font-semibold"
             >
-              {showPassword ? <AiOutlineEyeInvisible /> : <AiOutlineEye />}
+              {loading ? 'Sending OTP...' : 'Request OTP'}
             </button>
-          </div>
-          {passwordError && (
-            <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/30 px-3 py-1 rounded-lg">
-              {passwordError}
-            </p>
-          )}
+          </form>
+        )}
 
-          {/* Confirm Password */}
-          <div className="relative">
-            <CiLock className="absolute top-3 left-3 text-gray-400" />
-            <input
-              type={showConfirmPassword ? 'text' : 'password'}
-              placeholder="Confirm Password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full pl-10 pr-10 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-              focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:bg-gray-700 
-              dark:text-gray-100"
-              required
-            />
+        {/* STEP 2 → OTP */}
+        {registerStep === 'otp' && (
+          <form onSubmit={handleVerifyOtp} className="space-y-4">
+            <div className="relative">
+              <MdOutlinePassword className="absolute top-3 left-3 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Enter OTP"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                required
+                className="w-full pl-10 pr-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+              />
+            </div>
             <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute right-3 top-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 
-              dark:hover:text-gray-200"
+              type="submit"
+              disabled={loading}
+              className="w-full py-2 rounded-lg bg-green-600 text-white font-semibold"
             >
-              {showConfirmPassword ? <AiOutlineEyeInvisible /> : <AiOutlineEye />}
+              {loading ? 'Verifying...' : 'Verify OTP'}
             </button>
-          </div>
-          {confirmError && (
-            <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/30 px-3 py-1 rounded-lg">
-              {confirmError}
-            </p>
-          )}
+          </form>
+        )}
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white 
-            font-semibold transition-colors duration-200 disabled:opacity-50"
-          >
-            {loading ? 'Registering...' : 'Register'}
-          </button>
-        </form>
+        {/* STEP 3 → DETAILS */}
+        {registerStep === 'details' && (
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div className="relative">
+              <HiUser className="absolute top-3 left-3 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                className="w-full pl-10 pr-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div className="relative">
+              <HiOutlineUser className="absolute top-3 left-3 text-gray-400" />
+              <input
+                type="text"
+                placeholder="First Name"
+                value={firstname}
+                onChange={(e) => setFirstname(e.target.value)}
+                required
+                className="w-full pl-10 pr-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div className="relative">
+              <HiOutlineUser className="absolute top-3 left-3 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Last Name"
+                value={lastname}
+                onChange={(e) => setLastname(e.target.value)}
+                required
+                className="w-full pl-10 pr-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div className="relative">
+              <CiLock className="absolute top-3 left-3 text-gray-400" />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full pl-10 pr-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div className="relative">
+              <CiLock className="absolute top-3 left-3 text-gray-400" />
+              <input
+                type="password"
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="w-full pl-10 pr-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2 rounded-lg bg-blue-600 text-white font-semibold"
+            >
+              {loading ? 'Registering...' : 'Register'}
+            </button>
+          </form>
+        )}
 
-        {/* Links */}
         <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+          <p>
+            Forgot your password?{' '}
+            <Link
+              to="/forgot-password"
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Reset here
+            </Link>
+          </p>
           <p>
             Already have an account?{' '}
             <Link
