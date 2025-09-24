@@ -1,23 +1,37 @@
 import { useEffect } from 'react';
-import { useAppSelector } from './hooks/index';
+import { useAppDispatch, useAppSelector } from './hooks/index';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import ProtectedLayout from './components/ProtectedLayout';
 import Dashboard from './pages/Dashboard';
 import RegisterPage from './pages/RegisterPage';
-import ForgotPasswordPage from './components/ForgotPasswordPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import { restoreAuth, hydrate } from './feature/auth/authSlice';
+import AboutPage from './pages/AboutPage';
 
 function App() {
+    const dispatch = useAppDispatch();
   const theme = useAppSelector((state) => state.theme.mode);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   useEffect(() => {
-    // Apply theme class to html root
+    // Restore authentication if tokens exist
+    const accessToken = localStorage.getItem('accessToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (accessToken && refreshToken) {
+      console.log('Restoring auth from localStorage');
+      dispatch(restoreAuth({ tokens: { accessToken, refreshToken } }));
+    } else {
+      dispatch(hydrate()); // mark complete even if not logged in
+    }
+
+    // Set theme class on document
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [theme]);
+  }, [dispatch, theme]);
+
 
   return (
     <Router>
@@ -29,10 +43,12 @@ function App() {
             {/* Protected routes wrapped in ProtectedLayout */}
             <Route element={<ProtectedLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/about" element={<AboutPage />} />
               {/* Add other protected routes here, e.g.: */}
               {/* <Route path="/kanban" element={<KanbanPage />} /> */}
               {/* Default redirect for / to dashboard */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/about" element={<Navigate to="/about" replace />} />
             </Route>
             {/* Catch-all: Redirect to login or home */}
             <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />        
