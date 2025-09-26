@@ -1,16 +1,20 @@
-// src/components/Navbar.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import ThemeToggle from './UI/ThemeToggle';
 import { logout } from '../feature/auth/authSlice';
-import { useAppDispatch, useAppSelector } from '../hooks';
+import { useAppDispatch } from '../hooks';
 
-const Navbar: React.FC<{ toggleSidebar: () => void }> = ({ toggleSidebar }) => {
+interface NavbarProps { 
+  toggleSidebar: () => void;
+  toggleSidebarCollapse: () => void;
+  isSidebarCollapsed?: boolean;
+}
+
+const Navbar: React.FC<NavbarProps> = ({ toggleSidebar, toggleSidebarCollapse, isSidebarCollapsed = false }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const dispatch = useAppDispatch();
-  // const user = useAppSelector((state) => state.auth);
   const user = { _id: "1", firstname: "Ajay", lastname: "Singh", username: "ajays", email: "ajay@example.com", profile_img: "https://flowbite.com/docs/images/people/profile-picture-5.jpg" };
-  console.log('User in Navbar:', user);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -34,7 +38,7 @@ const Navbar: React.FC<{ toggleSidebar: () => void }> = ({ toggleSidebar }) => {
           {/* Mobile menu toggle */}
           <button
             onClick={toggleSidebar}
-            className="p-2 rounded-xl bg-white/50 dark:bg-gray-800/50 border border-white/20 dark:border-gray-700/50 hover:bg-white/70 dark:hover:bg-gray-700/50 transition-all duration-300 group"
+            className="p-2 rounded-xl bg-white/50 dark:bg-gray-800/50 border border-white/20 dark:border-gray-700/50 hover:bg-white/70 dark:hover:bg-gray-700/50 transition-all duration-300 group md:hidden"
           >
             <div className="w-6 h-6 flex items-center justify-center">
               <div className="relative w-4">
@@ -48,6 +52,26 @@ const Navbar: React.FC<{ toggleSidebar: () => void }> = ({ toggleSidebar }) => {
                   isDropdownOpen ? '-rotate-45 -translate-y-1.5' : 'translate-y-1'
                 }`}></span>
               </div>
+            </div>
+          </button>
+
+          {/* Desktop sidebar collapse toggle */}
+          <button
+            onClick={toggleSidebarCollapse}
+            className="p-2 rounded-xl bg-white/50 dark:bg-gray-800/50 border border-white/20 dark:border-gray-700/50 hover:bg-white/70 dark:hover:bg-gray-700/50 transition-all duration-300 group hidden md:flex"
+            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <div className="w-6 h-6 flex items-center justify-center">
+              <svg 
+                className={`w-4 h-4 text-gray-600 dark:text-gray-300 transition-transform duration-300 ${
+                  isSidebarCollapsed ? 'rotate-180' : ''
+                }`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
             </div>
           </button>
 
